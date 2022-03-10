@@ -1,19 +1,10 @@
-from asyncio import start_unix_server
-
-
 try:
     import os
-    import cv2
+    import cv2               # sudo pip3 install opencv_contrib_python; dependencies include numpy and dlib
     import numpy as np
-    import face_recognition
+    import face_recognition  # sudo pip3 install face_recognition
 except Exception as e:
     print(e)
-
-# try:
-#     face_cascade = cv2.CascadeClassifier(cv2.data.haarcascades + "haarcascade_frontalface_default.xml")
-# except Exception as e:
-#     print( str(e) )
-
 
 def getCameraVideo(*args, **kwargs):
     try:
@@ -48,13 +39,6 @@ def getCameraVideo(*args, **kwargs):
                         grayframe = cv2.cvtColor(original, cv2.COLOR_BGR2GRAY)
 
                         try:
-                            # if not face_cascade is None:
-                            #     faces = face_cascade.detectMultiScale(grayframe, scaleFactor=1.5, minNeighbors=5)
-                            #     for (x,y,w,h) in faces:
-                            #         rect_x = x
-                            #         rect_y = y
-                            #         rect_w = x + w
-                            #         rect_h = y + h
                             facesCurFrame = face_recognition.face_locations(grayframe)[0]
                             cv2.rectangle(original,(facesCurFrame[3],facesCurFrame[0]),(facesCurFrame[1],facesCurFrame[2]),(0,255,0),2)
                         except Exception as fe:

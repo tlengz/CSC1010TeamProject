@@ -1,3 +1,6 @@
+from numpy import nonzero
+
+
 try:
     import os
     import cv2               # sudo pip3 install opencv_contrib_python; dependencies include numpy and dlib - DO NOT INSTALL opencv-python
@@ -8,95 +11,19 @@ try:
     import queue
 except Exception as e:
     print(e)
-#---------------------------------------------------------------------------------------------------------------------
-
-
-#---------------------------------------------------------------------------------------------------------------------
-def SaveFaces(key):
-    try:
-        vid          = cv2.VideoCapture(0)
-        face_cascade = cv2.CascadeClassifier(cv2.data.haarcascades +'haarcascade_frontalface_alt2.xml')
-        #face_cascade = cv2.CascadeClassifier(cv2.data.haarcascades + 'lbpcascade_frontalface.xml')
-        
-        if face_cascade.empty():
-            print("face is empty")
-
-        if vid is not None and face_cascade is not None:
-            BASEDIR = '/home/pi/Documents/CSC1010/images'
-            #BASEDIR = os.path.dirname(os.path.abspath(__file__))
-            SaveFolder = BASEDIR + "/" + key + "/"
-            try:
-                fps = vid.get(cv2.CV_CAP_PROP_FPS)
-            except Exception as a:
-                try:
-                    fps = vid.get(cv2.CAP_PROP_FPS)
-                except Exception as b:
-                    fps = 1
-            if fps > 1:
-                spf = int(1000 / fps)
-            else:
-                spf = 1
-            targetHeight = 360
-            targetWidth  = 390
-            if vid.isOpened:
-                success, original = vid.read()
-                if success:
-                    try:
-                        hT, wT, ct = original.shape
-                        targetWidth = int(wT / hT * targetHeight)
-                    except:
-                        pass
-            counter = 0
-            while vid.isOpened():
-                try:
-                    success, original = vid.read()
-                    if success:
-                        grayframe = cv2.cvtColor(original, cv2.COLOR_BGR2GRAY)
-                        croppedImage = grayframe
-                        faces = face_cascade.detectMultiScale(grayframe,scaleFactor=1.1,minNeighbors=4)
-                        for (x,y,w,h) in faces:
-                            try:
-                                croppedImage = grayframe[y:y+h , x:x+w]
-                            except Exception as ce:
-                                pass
-                        try:
-                            hT, wT ,ct = croppedImage.shape
-                            targetWidth = int(wT / hT * targetHeight)
-                        except Exception as ed:
-                            pass
-                        try:
-                            croppedImage  = cv2.resize(croppedImage, (targetWidth, targetHeight))
-                            #pass
-                        except Exception as er:
-                            pass
-
-                        if counter < 10:
-                            imgName = SaveFolder + "img" + str(counter) + ".jpg"
-                            cv2.imwrite(imgName, croppedImage)
-                            print("Saving " + imgName)
-                            counter += 1
-
-                        cv2.imshow("frame", croppedImage)
-                    if  cv2.waitKey(spf) & 0xFF == ord("q"):
-                        break
-                except Exception as exc:
-                    print("vid.isOpened() : " + str(exc))
-            vid.release()
-            cv2.destroyAllWindows()
-            print(SaveFolder)
-    except Exception as e:
-        print("SaveFaces() : " + str(e))
-#---------------------------------------------------------------------------------------------------------------------
-""" def TrainModel():
+#---------------------------------------------------------------------------------------------------------------------  
+def TrainModel():
     BASEDIR = '/home/pi/Documents/CSC1010/images'
     names = []
     paths = []
     for users in os.listdir(BASEDIR):
         names.append(users)
+        #print(users)
     for name in names:
         for image in os.listdir(BASEDIR + "/" + name ):
             path_string = os.path.join(BASEDIR + "/" + name, image)
             paths.append(path_string)
+            #print(path_string)
     faces = []
     ids = []
     for image_path in paths:
@@ -104,117 +31,216 @@ def SaveFaces(key):
         imageNp = np.array(image,"uint8")
         faces.append(imageNp)
         id = int(image_path.split("/")[7].split("_")[0])
+        #print(id)
         ids.append(id)
     ids = np.array(ids)
     trainer = cv2.face.LBPHFaceRecognizer_create()  # pip3 install opencv-contrib-python
-    
     trainer.train(faces,ids)
     trainer.write("training.yml")
-    print("Model trained") """
+    print("Model trained")
 #---------------------------------------------------------------------------------------------------------------------
-quitVideo = False
-colorQueue = queue.Queue()
-grayQueue  = queue.Queue()
-
-def getCameraVideo():
-    vid = cv2.VideoCapture(0)
-    if vid != None:
-        if vid.isOpened():
-            success = False
-            spf = 1
-            targetHeight = 360
-            targetWidth = 390
-            while success != True:
+quitVideo    = False
+resizedQueue = queue.Queue()
+colorQueue   = queue.Queue()
+grayQueue    = queue.Queue()
+profileQueue = queue.Queue()
+outputQueue  = queue.Queue()
+#---------------------------------------------------------------------------------------------------------------------
+def resize(vid,width,height):
+    global quitVideo
+    global resizedQueue
+    if vid.isOpened():
+        while not quitVideo and vid.isOpened():
+            try:
                 success, original = vid.read()
-
-            try:
-                fps = vid.get(cv2.CV_CAP_PROP_FPS)
-            except:
-                try:
-                    fps = vid.get(cv2.CAP_PROP_FPS)
-                except:
-                    fps = 1
-            if fps > 1:
-                spf = int(1000 / fps)
-            else:
-                spf = 1
-            
-            try:
-                hT, wT = original.shape
-                targetWidth = int(wT / hT * targetHeight)
-            except:
-                pass
-        inputStream = threading.Thread(target = getFrames,args=(vid,targetWidth,targetHeight))
-        outputStream = threading.Thread(target = displayVideo,args=(vid,spf))
-        inputStream.start()
-        outputStream.start()
-        inputStream.join()
-        outputStream.join()
-        vid.release()
-        cv2.destroyAllWindows()
+                if success:
+                    resized = cv2.resize(original, (width,height))
+                    resizedQueue.put(resized)
+            except Exception as e:
+                print("resize() : " + str(e))
 #---------------------------------------------------------------------------------------------------------------------
-def getFrames(vidSrc,targetWidth,targetHeight):
+def rgb(vid):
     global quitVideo
-    global colorQueue
+    global resizedQueue
     global grayQueue
-    while not quitVideo and vidSrc.isOpened():
-        try:
-            success, original = vidSrc.read()
-            if success:
-                resizedImage  = cv2.resize(original, (targetWidth, targetHeight))
-                rgbframe      = cv2.cvtColor(resizedImage, cv2.COLOR_BGR2RGB)
-                grayframe     = cv2.cvtColor(resizedImage, cv2.COLOR_BGR2GRAY)
-                colorQueue.put(rgbframe)
-                grayQueue.put(grayframe)
-        except:
-            pass
-                        
-def displayVideo(vidSrc,spf):
+    global colorQueue
+    if vid.isOpened():
+        while not quitVideo and vid.isOpened():
+            try:
+                if resizedQueue.qsize() > 0:
+                    resized = resizedQueue.get()
+                    #resizedQueue.task_done()
+                    grayframe  = cv2.cvtColor(resized, cv2.COLOR_BGR2GRAY)
+                    colorframe = cv2.cvtColor(resized, cv2.COLOR_BGR2RGB)
+                    grayQueue.put(grayframe)
+                    colorQueue.put(colorframe)
+            except Exception as e:
+                print("rgb() : " + str(e))
+#---------------------------------------------------------------------------------------------------------------------                
+""" def highlightface(vid,face_cascade):
     global quitVideo
-    global colorQueue
     global grayQueue
-    face_cascade    = cv2.CascadeClassifier(cv2.data.haarcascades +'haarcascade_frontalface_alt2.xml')
-    face_recognizer = cv2.face.LBPHFaceRecognizer_create()
+    global grayQueue2
+    #global colorQueue
+    global profileQueue
+    #global outputQueue
+    if vid.isOpened() and face_cascade != None:
+        while not quitVideo and vid.isOpened() and face_cascade != None:
+            try:
+                if grayQueue.qsize() > 0:
+                    grayframe  = grayQueue.get()
+                    grayframe2 = grayframe
+                    grayQueue.task_done()
+                    #colorframe = colorQueue.get()
+                    #colorQueue.task_done()
+                    faces = face_cascade.detectMultiScale( grayframe, scaleFactor=1.1, minNeighbors=3 )
+                    for (x,y,w,h) in faces:
+                        croppedGrayImage = grayframe[y:y+h , x:x+w]
+                        grayProfile = cv2.resize(croppedGrayImage, (400,368))
+                        profileQueue.put(grayProfile)
+                        #grayframe   = grayProfile
+                        #cv2.rectangle(colorframe,(x,y),(x+w,y+h),(0,0,255),2)
+                    grayQueue2.put(grayframe2)
+                    #grayframe = cv2.cvtColor(grayframe, cv2.COLOR_GRAY2BGR)
+                    #output    = np.hstack((colorframe, grayframe))
+                    #outputQueue.put(output)
+            except Exception as e:
+                print("rgb() : " + str(e)) """
+#---------------------------------------------------------------------------------------------------------------------                
+def saveface(vid,destination):
+    global quitVideo
+    global profileQueue
+    if vid.isOpened() :
+        BASEDIR = '/home/pi/Documents/CSC1010/images'
+        #BASEDIR = os.path.dirname(os.path.abspath(__file__))
+        SaveFolder = BASEDIR + "/" + destination + "/"
+        counter = 0
+        while not quitVideo and vid.isOpened() :
+            if profileQueue.qsize() > 0 and counter < 50:
+                profileframe = profileQueue.get()
+                #profileQueue.task_done()
+                imgName = SaveFolder + "img" + str(counter) + ".jpg"
+                cv2.imwrite(imgName, profileframe)
+                print(imgName + " saved.")
+                counter += 1
+#---------------------------------------------------------------------------------------------------------------------
+def recognizeface(vid,face_cascade,face_recognizer):
+    global quitVideo
+    #global profileQueue
+    global grayQueue
+    global colorQueue
+    global outputQueue
+    if vid.isOpened() and face_cascade != None and face_recognizer != None:
+        face_recognizer.read("./training.yml")
+        person = ["","Kee Boon Hwee"]
+        
+        while not quitVideo and vid.isOpened() and face_cascade != None and face_recognizer != None:
+            try:
+                if colorQueue.qsize() > 0 and grayQueue.qsize() > 0:
+                    colorframe = colorQueue.get()
+                    grayframe  = grayQueue.get()
+                    #colorQueue.task_done()
+                    #grayQueue.task_done()
 
-    if face_cascade != None and face_recognizer != None:
-        try:
-            face_recognizer.read("./training.yml")
-            names = ['Kee Boon Hwee']
-            while not quitVideo and vidSrc.isOpened():
-                try:
-                    if colorQueue.qsize() > 0:
-                        grayframe = grayQueue.get()
-                        rgbframe = colorQueue.get()
-
-                        faces = face_cascade.detectMultiScale(grayframe,scaleFactor=1.1,minNeighbors=4)
+                    try:
+                        faces = face_cascade.detectMultiScale( grayframe, scaleFactor=1.1, minNeighbors=3 )
                         for (x,y,w,h) in faces:
-                            try:
-                                croppedGrayImage = grayframe[y:y+h , x:x+w]
-                                id, confidence = face_recognizer.predict(croppedGrayImage)
-                                color = (0,0,255)
-                                if id:
-                                    color = (0,255,0)
-                                    cv2.putText(rgbframe,names[id - 1],(x,y-4),cv2.FONT_HERSHEY_SIMPLEX,0.8,color,1,cv2.LINE_AA)
-                                    print(str(id) + " = " + str(confidence))
-                                else:
-                                    cv2.putText(rgbframe,"Unknown",(x,y-4),cv2.FONT_HERSHEY_SIMPLEX,0.8,color,1,cv2.LINE_AA)
-                                cv2.rectangle(rgbframe,(x,y),(x+w,y+h),color,2)
-                            except Exception as ce:
-                                pass
-                                
-                        cv2.imshow("frame", rgbframe)
-                    if  cv2.waitKey(spf) & 0xFF == ord("q"):
-                        quitVideo = True
-                except:
-                    pass
-        except Exception as e:
-            print(str(e))
+                            color = (0,0,255)
+                            personName = "Unknown"
+                            croppedGrayImage = grayframe[y:y+h , x:x+w]
+                            grayProfile = cv2.resize(croppedGrayImage, (400,368))
+                            #profileQueue.put(grayProfile)
+                            # _id, _confidence = face_recognizer.predict(grayProfile)
+                            # if _id:
+                            #     color = (0,255,0)
+                            #     personName = person[_id]
+                                #print(str(_id) + " = " + str(_confidence))
+                            cv2.rectangle(colorframe,(x,y),(x+w,y+h),color,2)
+                            cv2.putText(colorframe,personName,(x,y-4),cv2.FONT_HERSHEY_SIMPLEX,0.8,color,1,cv2.LINE_AA)
+
+                    except Exception as f:
+                        print("fasce_cascade : " + str(f))
+
+                outputQueue.put(colorframe)
+
+            except Exception as e:
+                print("recognizeface() : " + str(e))
 #---------------------------------------------------------------------------------------------------------------------
+def output(vid):
+    global quitVideo
+    global outputQueue
+    if vid.isOpened():
+        while not quitVideo and vid.isOpened():
+            try:
+                if outputQueue.qsize() > 0:
+                    output = outputQueue.get()
+                    #outputQueue.task_done()
+                    cv2.imshow("Output", output)
+            except Exception as e:
+                print("output() : " + str(e))
+#---------------------------------------------------------------------------------------------------------------------
+def userQuit(vid):
+    global quitVideo
+    if vid.isOpened():
+        while not quitVideo and vid.isOpened():
+            try:
+                if  cv2.waitKey(1) & 0xFF == ord("q"):
+                    quitVideo = True
+                    break
+            except Exception as e:
+                print("userQuit() : " + str(e))
+#---------------------------------------------------------------------------------------------------------------------
+def getCameraVideo():
+    try:
+        vid = cv2.VideoCapture(0)
+        try:
+            if vid != None and vid.isOpened():
+                face_cascade = cv2.CascadeClassifier(cv2.data.haarcascades + 'haarcascade_frontalface_alt2.xml')
+                #face_cascade = cv2.CascadeClassifier(cv2.data.haarcascades + 'haarcascade_frontalface_default.xml')
+                if face_cascade != None and not face_cascade.empty():
+                    face_recognizer = cv2.face.LBPHFaceRecognizer_create()
+                    if face_recognizer != None:
+                        try:
+                            #-------------------------------------------------------------------------------
+                            resizeThread    = threading.Thread(target = resize            , args=[vid,400,368]                      )
+                            rgbThread       = threading.Thread(target = rgb               , args=[vid]                              )
+                            recognizefaceThread = threading.Thread(target = recognizeface , args=[vid,face_cascade,face_recognizer] )
+                            #saveFaceThread  = threading.Thread(target = saveface         , args=[vid,"Kee Boon Hwee"]              )
+                            outputThread    = threading.Thread(target = output            , args=[vid]                              )
+                            userQuitThread  = threading.Thread(target = userQuit          , args=[vid]                              )
+                            #-------------------------------------------------------------------------------
+                            resizeThread.start()
+                            rgbThread.start()
+                            recognizefaceThread.start()
+                            #saveFaceThread.start()
+                            outputThread.start()
+                            userQuitThread.start()
+                            #-------------------------------------------------------------------------------
+                            resizeThread.join()
+                            rgbThread.join()
+                            recognizefaceThread.join()
+                            #saveFaceThread.join()
+                            outputThread.join()
+                            userQuitThread.join()
+                            #-------------------------------------------------------------------------------
+                        except Exception as e:
+                            print("getCameraVideo() : " + str(e))
+                    else:
+                        print("cv2.face.LBPHFaceRecognizer_create is not ready!")
+                else:
+                    print("cv2.CascadeClassifier is not ready!")
+        except Exception as f:
+            print("" + str(f))
+    except Exception as e:
+        print("" + str(e))
+       
+#---------------------------------------------------------------------------------------------------------------------
+
 
 #---------------------------------------------------------------------------------------------------------------------
 def main():
-    #getCameraVideo()
-    SaveFaces("Kee Boon Hwee")
+    #TrainModel()
+    getCameraVideo()
 #---------------------------------------------------------------------------------------------------------------------
 if __name__ == "__main__":
     main()

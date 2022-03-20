@@ -69,7 +69,7 @@ def rgb(vid):
             try:
                 if resizedQueue.qsize() > 0:
                     resized = resizedQueue.get()
-                    #resizedQueue.task_done()
+                    resizedQueue.task_done()
                     grayframe  = cv2.cvtColor(resized, cv2.COLOR_BGR2GRAY)
                     colorframe = cv2.cvtColor(resized, cv2.COLOR_BGR2RGB)
                     grayQueue.put(grayframe)
@@ -118,7 +118,7 @@ def saveface(vid,destination):
         while not quitVideo and vid.isOpened() :
             if profileQueue.qsize() > 0 and counter < 50:
                 profileframe = profileQueue.get()
-                #profileQueue.task_done()
+                profileQueue.task_done()
                 imgName = SaveFolder + "img" + str(counter) + ".jpg"
                 cv2.imwrite(imgName, profileframe)
                 print(imgName + " saved.")
@@ -134,14 +134,13 @@ def recognizeface(vid,face_cascade,face_recognizer):
         face_recognizer.read("./training.yml")
         person = ["","Kee Boon Hwee"]
         
-        while not quitVideo and vid.isOpened() and face_cascade != None and face_recognizer != None:
+        while not quitVideo and vid.isOpened():
             try:
                 if colorQueue.qsize() > 0 and grayQueue.qsize() > 0:
                     colorframe = colorQueue.get()
                     grayframe  = grayQueue.get()
-                    #colorQueue.task_done()
-                    #grayQueue.task_done()
-
+                    colorQueue.task_done()
+                    grayQueue.task_done()
                     try:
                         faces = face_cascade.detectMultiScale( grayframe, scaleFactor=1.1, minNeighbors=3 )
                         for (x,y,w,h) in faces:
@@ -149,20 +148,19 @@ def recognizeface(vid,face_cascade,face_recognizer):
                             personName = "Unknown"
                             croppedGrayImage = grayframe[y:y+h , x:x+w]
                             grayProfile = cv2.resize(croppedGrayImage, (400,368))
+                            
                             #profileQueue.put(grayProfile)
-                            # _id, _confidence = face_recognizer.predict(grayProfile)
-                            # if _id:
-                            #     color = (0,255,0)
-                            #     personName = person[_id]
-                                #print(str(_id) + " = " + str(_confidence))
+                            _id, _confidence = face_recognizer.predict(grayProfile)
+                            if _id and _confidence <= 39.0:
+                                color = (0,255,0)
+                                personName = person[_id]
+                                print(str(_id) + " = " + str(_confidence))
                             cv2.rectangle(colorframe,(x,y),(x+w,y+h),color,2)
                             cv2.putText(colorframe,personName,(x,y-4),cv2.FONT_HERSHEY_SIMPLEX,0.8,color,1,cv2.LINE_AA)
-
                     except Exception as f:
                         print("fasce_cascade : " + str(f))
 
-                outputQueue.put(colorframe)
-
+                    outputQueue.put(colorframe)
             except Exception as e:
                 print("recognizeface() : " + str(e))
 #---------------------------------------------------------------------------------------------------------------------
@@ -174,7 +172,7 @@ def output(vid):
             try:
                 if outputQueue.qsize() > 0:
                     output = outputQueue.get()
-                    #outputQueue.task_done()
+                    outputQueue.task_done()
                     cv2.imshow("Output", output)
             except Exception as e:
                 print("output() : " + str(e))

@@ -32,9 +32,15 @@ class ChatServer:
         self.listenThread.join()
     #-----------------------------------------------------------------------------------------------
     def Listen(self):
-        self.socket.listen(1)
+        self.socket.listen(128)
         while(not self.quitFlag):
-            client = threading.Thread(target = self.AcceptConnection)
+            connection, client_address = self.socket.accept()
+            self.clientCount += 1
+            newClient = str(client_address[1]) + str(self.clientCount)
+            print("New connection received from " + str(newClient) + " (" + str(self.clientCount) + " connection(s)!")
+            self.clients[ newClient ] = connection
+
+            client = threading.Thread(target = self.AcceptConnection , args=[ connection , client_address[1] ] )
             client.start()
             client.join()
     #-----------------------------------------------------------------------------------------------
@@ -49,26 +55,21 @@ class ChatServer:
                         cn.sendall( msg )
                 else:
                     print("\n" + message[1] )
-
-
     #-----------------------------------------------------------------------------------------------
     def Input(self):
         while(not self.quitFlag):
-            yourmessage = input("Me > ")
+            yourmessage = input("")
             self.messageQueue.put( (self.userName , yourmessage) )
     #-----------------------------------------------------------------------------------------------
-    def AcceptConnection(self):
-        connection, client_address = self.socket.accept()
-        self.clientCount += 1
-        self.clients[ str(client_address[1]) + str(self.clientCount) ] = connection
+    def AcceptConnection(self,connection,address):
         try:
             while(True):
                 data = connection.recv(64)           # This must be the same as the client, and vice versa
                 if data:
-                    self.messageQueue.put( (str(client_address[1]), bytes(data).decode('UTF-8') ) )
+                    self.messageQueue.put( (str(address), bytes(data).decode('UTF-8') ) )
         except Exception as e:
             connection.close()
-            self.clients.pop(client_address)
+            self.clients.pop(connection)
             print("\n" + str(e))
     #-----------------------------------------------------------------------------------------------
     def __del__(self):

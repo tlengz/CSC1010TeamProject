@@ -39,7 +39,7 @@ class ChatClient:
     #-----------------------------------------------------------------------------------------------
     def Input(self):
         while(not self.quitFlag):
-            yourmessage = input("Me > ")
+            yourmessage = input("")
             self.messageQueue.put( (self.userName , yourmessage) )
     #-----------------------------------------------------------------------------------------------
     def Receiver(self):
@@ -58,7 +58,7 @@ class ChatClient:
 
 def main():
     try:
-        print("This is CSC1010 chat server : ")
+        print("This is CSC1010 chat client : ")
         portNotSet = True
         while portNotSet:
             try:

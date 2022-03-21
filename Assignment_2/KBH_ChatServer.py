@@ -19,7 +19,8 @@ class ChatServer:
         self.quitFlag = False
         self.userName = userName
         self.clientCount = 0
-        self.clients = {}
+        self.clientThread = {}
+        self.connections = {}
         self.messageQueue = queue.Queue()
         self.echoThread   = threading.Thread(target = self.Echo)
         self.echoThread.start()
@@ -34,15 +35,16 @@ class ChatServer:
     def Listen(self):
         self.socket.listen(128)
         while(not self.quitFlag):
-            connection, client_address = self.socket.accept()
-            self.clientCount += 1
-            newClient = str(client_address[1]) + str(self.clientCount)
-            print("New connection received from " + str(newClient) + " (" + str(self.clientCount) + " connection(s)!")
-            self.clients[ newClient ] = connection
-
-            client = threading.Thread(target = self.AcceptConnection , args=[ connection , client_address[1] ] )
-            client.start()
-            client.join()
+            try:
+                connection, client_address = self.socket.accept()
+                self.clientCount += 1
+                newClient = str(client_address[1]) + str(self.clientCount)
+                print("New connection received from " + str(newClient) + " (" + str(self.clientCount) + " connection(s)!")
+                client = threading.Thread(target = self.AcceptConnection , args=( connection , client_address ) ).start()
+                self.connections[ client_address ] = connection
+                self.clientThread[ client_address ] = client
+            except Exception as e:
+                print("Server listen() error : " + str(e))
     #-----------------------------------------------------------------------------------------------
     def Echo(self):
         while(not self.quitFlag):
@@ -51,8 +53,9 @@ class ChatServer:
                 if(message[0] == self.userName):
                     msg = message[0] + " > " + message[1]
                     msg = bytearray( msg , 'UTF-8')
-                    for id, cn in self.clients.items():
-                        cn.sendall( msg )
+                    for id, cn in self.connections.items():
+                        if cn != None:
+                            cn.sendall( msg )
                 else:
                     print("\n" + message[1] )
     #-----------------------------------------------------------------------------------------------
@@ -61,18 +64,21 @@ class ChatServer:
             yourmessage = input("")
             self.messageQueue.put( (self.userName , yourmessage) )
     #-----------------------------------------------------------------------------------------------
-    def AcceptConnection(self,connection,address):
+    def AcceptConnection(self,connection,client_address):
         try:
             while(True):
                 data = connection.recv(64)           # This must be the same as the client, and vice versa
                 if data:
-                    self.messageQueue.put( (str(address), bytes(data).decode('UTF-8') ) )
+                    self.messageQueue.put( (str(client_address[1]), bytes(data).decode('UTF-8') ) )
         except Exception as e:
             connection.close()
-            self.clients.pop(connection)
+            self.connections[ client_address ] = None
+            self.connections.pop(client_address)
             print("\n" + str(e))
     #-----------------------------------------------------------------------------------------------
     def __del__(self):
+        for id, client in self.clientThread.items():
+            client.join()
         self.socket.close()
         print("\nCharServer has terminated.\n")
     #-----------------------------------------------------------------------------------------------

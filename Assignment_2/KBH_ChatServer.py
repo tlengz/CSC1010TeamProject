@@ -58,6 +58,14 @@ class ChatServer:
                             cn.sendall( msg )
                 else:
                     print("\n" + message[1] )
+                    for id, cn in self.connections.items():
+                        if str(id[1]) != str(message[0]):
+                            try:
+                                cn.sendall( bytearray( message[1] , 'UTF-8') )
+                            except Exception as c:
+                                print(str(c))
+                    
+
     #-----------------------------------------------------------------------------------------------
     def Input(self):
         while(not self.quitFlag):

@@ -8,7 +8,8 @@ class ChatClient:
         s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
         self.port = int(portNumber)                                            # RFC 862 echo protocol states TCP port = 7
         self.socket = socket.socket( socket.AF_INET, socket.SOCK_STREAM )
-        self.server_address = ( "192.168.0.124", self.port )
+        #self.server_address = ( "192.168.0.124", self.port )
+        self.server_address = ( "192.168.1.2", self.port )
         self.socket.connect(self.server_address)
         print('Chat Client on ipv4 {}, is listening on port {}...'.format(*self.server_address))
         self.CMD_LIST     = "LIST images"

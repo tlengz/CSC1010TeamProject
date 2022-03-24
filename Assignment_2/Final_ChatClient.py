@@ -15,11 +15,12 @@ class ChatClient:
         s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
         self.port = int(portNumber)  # RFC 862 echo protocol states TCP port = 7
         self.socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-        self.server_address = ("172.30.140.103", self.port)
+        self.server_address = ("192.168.137.1", self.port)
         self.socket.connect(self.server_address)
         print('Chat Client on ipv4 {}, is listening on port {}...'.format(*self.server_address))
         self.CMD_LIST = "LIST images"
         self.CMD_DOWNLOAD = "DOWNLOAD"
+        self.CMD_QUIT = "QUIT"
         self.imageInLIst = False
         self.imageSize = 0
         self.DownloadImg = False
@@ -64,6 +65,9 @@ class ChatClient:
     def Input(self):
         while not self.quitFlag:
             yourmessage = input("")
+            if self.CMD_QUIT in yourmessage :
+                self.socket.close()
+                self.quitFlag = true
             if self.CMD_DOWNLOAD in yourmessage :
                 self.DownloadImg = True
                 self.fileName = yourmessage.split(" ")[1]

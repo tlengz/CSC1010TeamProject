@@ -119,6 +119,7 @@ class ChatServer:
             connection.close()
             self.connections[ client_address ] = None
             self.connections.pop(client_address)
+            self.clientCount -= 1
             print("\n" + str(e))
     #-----------------------------------------------------------------------------------------------
     def __del__(self):

@@ -67,7 +67,7 @@ class ChatClient:
             yourmessage = input("")
             if self.CMD_QUIT in yourmessage :
                 self.socket.close()
-                self.quitFlag = true
+                self.quitFlag = True
             if self.CMD_DOWNLOAD in yourmessage :
                 self.DownloadImg = True
                 self.fileName = yourmessage.split(" ")[1]

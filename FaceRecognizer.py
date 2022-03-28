@@ -1,6 +1,3 @@
-from numpy import nonzero
-
-
 try:
     import os
     import cv2               # sudo pip3 install opencv_contrib_python; dependencies include numpy and dlib - DO NOT INSTALL opencv-python
@@ -9,6 +6,8 @@ try:
     from PIL import Image
     import threading
     import queue
+    import paho.mqtt.publish as publish
+    import paho.mqtt.client as mqtt
 except Exception as e:
     print(e)
 #---------------------------------------------------------------------------------------------------------------------  
@@ -45,6 +44,8 @@ colorQueue   = queue.Queue()
 grayQueue    = queue.Queue()
 profileQueue = queue.Queue()
 outputQueue  = queue.Queue()
+Recognized   = False
+Who          = "No one is at the door"
 #---------------------------------------------------------------------------------------------------------------------
 def resize(vid,width,height):
     global quitVideo
@@ -130,6 +131,8 @@ def recognizeface(vid,face_cascade,face_recognizer):
     global grayQueue
     global colorQueue
     global outputQueue
+    global Recognized
+    global Who
     if vid.isOpened() and face_cascade != None and face_recognizer != None:
         face_recognizer.read("./training.yml")
         person = ["","Kee Boon Hwee"]
@@ -143,20 +146,40 @@ def recognizeface(vid,face_cascade,face_recognizer):
                     grayQueue.task_done()
                     try:
                         faces = face_cascade.detectMultiScale( grayframe, scaleFactor=1.1, minNeighbors=3 )
-                        for (x,y,w,h) in faces:
-                            color = (0,0,255)
-                            personName = "Unknown"
-                            croppedGrayImage = grayframe[y:y+h , x:x+w]
-                            grayProfile = cv2.resize(croppedGrayImage, (400,368))
-                            
-                            #profileQueue.put(grayProfile)
-                            _id, _confidence = face_recognizer.predict(grayProfile)
-                            if _id and _confidence <= 39.0:
-                                color = (0,255,0)
-                                personName = person[_id]
-                                print(str(_id) + " = " + str(_confidence))
-                            cv2.rectangle(colorframe,(x,y),(x+w,y+h),color,2)
-                            cv2.putText(colorframe,personName,(x,y-4),cv2.FONT_HERSHEY_SIMPLEX,0.8,color,1,cv2.LINE_AA)
+                        if len(faces) > 0 :
+                            #print("There are " + str(len(faces)) +  " face(s)")
+                            for (x,y,w,h) in faces:
+                                color = (0,0,255)
+                                personName = "Unknown"
+                                croppedGrayImage = grayframe[y:y+h , x:x+w]
+                                grayProfile = cv2.resize(croppedGrayImage, (400,368))
+                                
+                                #profileQueue.put(grayProfile)
+                                _id, _confidence = face_recognizer.predict(grayProfile)
+                                if _id and _confidence <= 39.0:
+                                    color = (0,255,0)
+                                    personName = person[_id]
+                                    #print(str(_id) + " = " + str(_confidence))
+                                    if Recognized == False:
+                                        Recognized = True
+                                        Who = personName + " is at the door"
+                                        publish.single(topic="Doorbell", payload=Who, retain=True, hostname="192.168.0.157",port=1883,keepalive=5)
+                                else:
+                                    if Recognized == True:
+                                        Recognized = False
+                                        Who = "Unknown person(s) is at the door"
+                                        publish.single(topic="Doorbell", payload=Who, retain=True, hostname="192.168.0.157",port=1883,keepalive=5)
+
+                                cv2.rectangle(colorframe,(x,y),(x+w,y+h),color,2)
+                                cv2.putText(colorframe,personName,(x,y-4),cv2.FONT_HERSHEY_SIMPLEX,0.8,color,1,cv2.LINE_AA)
+                        else:
+                            if Who != "No one is at the door":
+                                Recognized = False
+                                Who = "No one is at the door"
+                                publish.single(topic="Doorbell", payload=Who, retain=True, hostname="192.168.0.157",port=1883,keepalive=5)
+
+                            #print("There are no faces")
+                        
                     except Exception as f:
                         print("fasce_cascade : " + str(f))
 
@@ -230,7 +253,7 @@ def getCameraVideo():
         except Exception as f:
             print("" + str(f))
     except Exception as e:
-        print("" + str(e))
+        print("cv2.VideoCapture() exception" + str(e))
        
 #---------------------------------------------------------------------------------------------------------------------
 

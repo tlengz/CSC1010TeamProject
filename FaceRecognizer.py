@@ -43,11 +43,12 @@ quitVideo    = False
 resizedQueue = queue.Queue()
 colorQueue   = queue.Queue()
 grayQueue    = queue.Queue()
-#profileQueue = queue.Queue()
+profileQueue = queue.Queue()
 outputQueue  = queue.Queue()
 Recognized   = False
 Who          = "No one is at the door"
 led = LED(17)
+ip_address = "192.168.156.141"
 #---------------------------------------------------------------------------------------------------------------------
 def resize(vid,width,height):
     global quitVideo
@@ -87,7 +88,7 @@ def saveface(vid,destination):
         BASEDIR = '/home/pi/Documents/CSC1010/images'
         #BASEDIR = os.path.dirname(os.path.abspath(__file__))
         SaveFolder = BASEDIR + "/" + destination + "/"
-        counter = 0
+        counter = 128
         limit = counter + 50
         while not quitVideo and vid.isOpened() :
             if profileQueue.qsize() > 0 and counter < limit:
@@ -136,23 +137,30 @@ def recognizeface(vid,face_cascade,face_recognizer):
                                     if Recognized == False:
                                         Recognized = True
                                         Who = personName + " is at the door"
-                                        publish.single(topic="Doorbell", payload=Who, retain=True, hostname="192.168.0.156",port=1883,keepalive=5)
+                                        publish.single(topic="Doorbell", payload=Who, retain=True, hostname=ip_address,port=1883,keepalive=5)
                                         led.on()
+                                        print(Who)
                                 else:
                                     if Recognized == True:
                                         Recognized = False
                                         Who = "Unknown person(s) is at the door"
-                                        publish.single(topic="Doorbell", payload=Who, retain=True, hostname="192.168.0.156",port=1883,keepalive=5)
+                                        publish.single(topic="Doorbell", payload=Who, retain=True, hostname=ip_address,port=1883,keepalive=5)
                                         led.off()
-
+                                        print(Who)
+                                    else:
+                                        Who = "Unknown person(s) is at the door"
+                                        publish.single(topic="Doorbell", payload=Who, retain=True, hostname=ip_address,port=1883,keepalive=5)
+                                        led.off()
+                                        
                                 cv2.rectangle(colorframe,(x,y),(x+w,y+h),color,2)
                                 cv2.putText(colorframe,personName,(x,y-4),cv2.FONT_HERSHEY_SIMPLEX,0.8,color,1,cv2.LINE_AA)
                         else:
                             if Who != "No one is at the door":
                                 Recognized = False
                                 Who = "No one is at the door"
-                                publish.single(topic="Doorbell", payload=Who, retain=True, hostname="192.168.0.156",port=1883,keepalive=5)
+                                publish.single(topic="Doorbell", payload=Who, retain=True, hostname=ip_address,port=1883,keepalive=5)
                                 led.off()
+                                print(Who)
 
                             #print("There are no faces")
                         

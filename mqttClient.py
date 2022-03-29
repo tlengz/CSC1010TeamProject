@@ -2,10 +2,11 @@ import paho.mqtt.client as mqtt
 #import paho.mqtt.publish as publish
 
 def on_connect(client, userdata, flags, rc):
-    client.subscribe("test")
+    client.subscribe("Doorbell")
 
 def on_message(client, userdata, msg):
-    print(str(msg.payload))
+    message = str(bytes(msg.payload).decode('UTF-8'))
+    print(message)
 
 client = mqtt.Client()
 client.on_connect = on_connect

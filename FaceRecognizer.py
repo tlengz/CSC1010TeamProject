@@ -8,6 +8,7 @@ try:
     import queue
     import paho.mqtt.publish as publish
     import paho.mqtt.client as mqtt
+    from   gpiozero import LED
 except Exception as e:
     print(e)
 #---------------------------------------------------------------------------------------------------------------------  
@@ -42,10 +43,11 @@ quitVideo    = False
 resizedQueue = queue.Queue()
 colorQueue   = queue.Queue()
 grayQueue    = queue.Queue()
-profileQueue = queue.Queue()
+#profileQueue = queue.Queue()
 outputQueue  = queue.Queue()
 Recognized   = False
 Who          = "No one is at the door"
+led = LED(17)
 #---------------------------------------------------------------------------------------------------------------------
 def resize(vid,width,height):
     global quitVideo
@@ -77,36 +79,6 @@ def rgb(vid):
                     colorQueue.put(colorframe)
             except Exception as e:
                 print("rgb() : " + str(e))
-#---------------------------------------------------------------------------------------------------------------------                
-""" def highlightface(vid,face_cascade):
-    global quitVideo
-    global grayQueue
-    global grayQueue2
-    #global colorQueue
-    global profileQueue
-    #global outputQueue
-    if vid.isOpened() and face_cascade != None:
-        while not quitVideo and vid.isOpened() and face_cascade != None:
-            try:
-                if grayQueue.qsize() > 0:
-                    grayframe  = grayQueue.get()
-                    grayframe2 = grayframe
-                    grayQueue.task_done()
-                    #colorframe = colorQueue.get()
-                    #colorQueue.task_done()
-                    faces = face_cascade.detectMultiScale( grayframe, scaleFactor=1.1, minNeighbors=3 )
-                    for (x,y,w,h) in faces:
-                        croppedGrayImage = grayframe[y:y+h , x:x+w]
-                        grayProfile = cv2.resize(croppedGrayImage, (400,368))
-                        profileQueue.put(grayProfile)
-                        #grayframe   = grayProfile
-                        #cv2.rectangle(colorframe,(x,y),(x+w,y+h),(0,0,255),2)
-                    grayQueue2.put(grayframe2)
-                    #grayframe = cv2.cvtColor(grayframe, cv2.COLOR_GRAY2BGR)
-                    #output    = np.hstack((colorframe, grayframe))
-                    #outputQueue.put(output)
-            except Exception as e:
-                print("rgb() : " + str(e)) """
 #---------------------------------------------------------------------------------------------------------------------                
 def saveface(vid,destination):
     global quitVideo
@@ -164,11 +136,13 @@ def recognizeface(vid,face_cascade,face_recognizer):
                                         Recognized = True
                                         Who = personName + " is at the door"
                                         publish.single(topic="Doorbell", payload=Who, retain=True, hostname="192.168.0.157",port=1883,keepalive=5)
+                                        led.on()
                                 else:
                                     if Recognized == True:
                                         Recognized = False
                                         Who = "Unknown person(s) is at the door"
                                         publish.single(topic="Doorbell", payload=Who, retain=True, hostname="192.168.0.157",port=1883,keepalive=5)
+                                        led.off()
 
                                 cv2.rectangle(colorframe,(x,y),(x+w,y+h),color,2)
                                 cv2.putText(colorframe,personName,(x,y-4),cv2.FONT_HERSHEY_SIMPLEX,0.8,color,1,cv2.LINE_AA)
@@ -177,6 +151,7 @@ def recognizeface(vid,face_cascade,face_recognizer):
                                 Recognized = False
                                 Who = "No one is at the door"
                                 publish.single(topic="Doorbell", payload=Who, retain=True, hostname="192.168.0.157",port=1883,keepalive=5)
+                                led.off()
 
                             #print("There are no faces")
                         

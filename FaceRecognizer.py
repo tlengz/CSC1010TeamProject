@@ -88,11 +88,12 @@ def saveface(vid,destination):
         #BASEDIR = os.path.dirname(os.path.abspath(__file__))
         SaveFolder = BASEDIR + "/" + destination + "/"
         counter = 0
+        limit = counter + 50
         while not quitVideo and vid.isOpened() :
-            if profileQueue.qsize() > 0 and counter < 50:
+            if profileQueue.qsize() > 0 and counter < limit:
                 profileframe = profileQueue.get()
                 profileQueue.task_done()
-                imgName = SaveFolder + "img" + str(counter) + ".jpg"
+                imgName = SaveFolder + "1_" + str(counter) + ".jpg"
                 cv2.imwrite(imgName, profileframe)
                 print(imgName + " saved.")
                 counter += 1
@@ -107,7 +108,7 @@ def recognizeface(vid,face_cascade,face_recognizer):
     global Who
     if vid.isOpened() and face_cascade != None and face_recognizer != None:
         face_recognizer.read("./training.yml")
-        person = ["","Kee Boon Hwee"]
+        person = ["","Kee Boon Hwee","Teo Leng"]
         
         while not quitVideo and vid.isOpened():
             try:
@@ -135,13 +136,13 @@ def recognizeface(vid,face_cascade,face_recognizer):
                                     if Recognized == False:
                                         Recognized = True
                                         Who = personName + " is at the door"
-                                        publish.single(topic="Doorbell", payload=Who, retain=True, hostname="192.168.0.157",port=1883,keepalive=5)
+                                        publish.single(topic="Doorbell", payload=Who, retain=True, hostname="192.168.0.156",port=1883,keepalive=5)
                                         led.on()
                                 else:
                                     if Recognized == True:
                                         Recognized = False
                                         Who = "Unknown person(s) is at the door"
-                                        publish.single(topic="Doorbell", payload=Who, retain=True, hostname="192.168.0.157",port=1883,keepalive=5)
+                                        publish.single(topic="Doorbell", payload=Who, retain=True, hostname="192.168.0.156",port=1883,keepalive=5)
                                         led.off()
 
                                 cv2.rectangle(colorframe,(x,y),(x+w,y+h),color,2)
@@ -150,13 +151,13 @@ def recognizeface(vid,face_cascade,face_recognizer):
                             if Who != "No one is at the door":
                                 Recognized = False
                                 Who = "No one is at the door"
-                                publish.single(topic="Doorbell", payload=Who, retain=True, hostname="192.168.0.157",port=1883,keepalive=5)
+                                publish.single(topic="Doorbell", payload=Who, retain=True, hostname="192.168.0.156",port=1883,keepalive=5)
                                 led.off()
 
                             #print("There are no faces")
                         
                     except Exception as f:
-                        print("fasce_cascade : " + str(f))
+                        print("face_cascade : " + str(f))
 
                     outputQueue.put(colorframe)
             except Exception as e:
